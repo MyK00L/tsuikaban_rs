@@ -1,41 +1,46 @@
 use crate::game::Game;
-use crate::res::Res;
+use crate::opts::Opts;
 use crate::state::*;
 use macroquad::*;
 
-const NUM_LEVELS: usize = 15;
-
-pub struct LevelSelect<'a> {
-	res: &'a Res,
-}
-impl<'a> LevelSelect<'a> {
-	pub fn new(res: &'a Res) -> Self {
-		LevelSelect { res: res }
+pub struct LevelSelect {}
+impl LevelSelect {
+	pub fn new() -> Self {
+		LevelSelect {}
 	}
 }
-impl<'a> State<'a> for LevelSelect<'a> {
-	fn update(&'a mut self) -> Transition {
-		let mut ret = Transition::POP(0);
+impl State for LevelSelect {
+	fn draw_update(&mut self, o: &mut Opts) -> Vec<Option<Box<dyn State>>> {
+		if is_key_pressed(KeyCode::Escape) {
+			return vec![None];
+		}
+		let mut ret = Vec::<Option<Box<dyn State>>>::new();
 		draw_window(
 			hash!(),
-			vec2(0., 0.),
-			vec2(screen_width(), screen_height()),
+			vec2(-1.0, -1.0),
+			vec2(screen_width() + 2.0, screen_height() + 2.0),
 			WindowParams {
+				label: "".to_string(),
+				movable: false,
+				close_button: false,
 				titlebar: false,
-				..Default::default()
 			},
 			|ui| {
-				for i in 0..15 {
-					if ui.button(None, &format!("{}", i)) {
-						//ret = Transition::PUSH(Box::<dyn State+'a>::new(
-						//	Game::new(include_str!("../res/levels/level10.txt"), self.res).unwrap()));
+				for i in 0..o.unlocked {
+					if ui.button(None, &i.to_string()) {
+						ret.push(Some(Box::new(Game::new(i).unwrap())));
 						return;
 					}
 				}
+				ui.separator();
+				for i in o.unlocked..super::LVLS.len() {
+					if ui.button(None, &i.to_string()) {
+						return;
+					}
+				}
+				ui.separator();
 			},
 		);
-		Transition::PUSH(Box/*::<dyn State+'a>*/::new(Game::new(include_str!("../res/levels/level10.txt"), self.res).unwrap()))
-		//Transition::POP(0)
+		ret
 	}
-	fn draw(&mut self) {}
 }

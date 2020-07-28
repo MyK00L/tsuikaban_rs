@@ -1,11 +1,5 @@
 use std::boxed::Box;
 
-pub enum Transition<'a> {
-	POP(usize),
-	PUSH(Box<dyn State<'a> + 'a>),
-}
-
-pub trait State<'a> {
-	fn update(&'a mut self) -> Transition;
-	fn draw(&mut self);
+pub trait State {
+	fn draw_update(&mut self, o: &mut crate::opts::Opts) -> Vec<Option<Box<dyn State>>>;
 }

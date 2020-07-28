@@ -1,8 +1,12 @@
-use crate::res::Res;
+use crate::opts::Opts;
+use crate::pause::Pause;
 use crate::state::*;
 use macroquad::*;
 
-#[derive(Clone, Copy)]
+const ANIMATION_FRAMES: usize = 6;
+const CUBE_SIZE: f32 = 0.9;
+
+#[derive(Clone, Copy, Debug)]
 enum Direction {
 	LEFT,
 	RIGHT,
@@ -25,33 +29,35 @@ fn unstep(p: (usize, usize), dir: Direction) -> (usize, usize) {
 		Direction::DOWN => (p.0.wrapping_sub(1), p.1),
 	}
 }
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Cube {
-	col: Color,
+	col: usize,
 	n: i16,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Tile {
 	FLOOR,
 	WALL,
 	DOOR,
 	CUBE(Cube),
 }
-pub struct Game<'a> {
+pub struct Game {
+	lvl_num: usize,
 	pos: (usize, usize),
 	m: Vec<Vec<Tile>>,
-	res: &'a Res,
+	undo_stack: Vec<(Direction, usize, Option<Cube>)>,
+	anime: usize,
 }
-impl<'a> Game<'a> {
-	pub fn new(buf: &str, res: &'a Res) -> Result<Self, Box<dyn std::error::Error>> {
-		let mut v = buf.split_whitespace().map(String::from);
-		let h: usize = v.next().ok_or("malformatted level file")?.parse()?;
-		let w: usize = v.next().ok_or("malformatted level file")?.parse()?;
-		let mut m = vec![vec![Tile::FLOOR; w]; h];
-		for i in 0..h {
-			let s = v.next().ok_or("malformatted level file")?;
+impl Game {
+	pub fn new(lvl_num: usize) -> Result<Self, Box<dyn std::error::Error>> {
+		let mut tokens = super::LVLS[lvl_num].split_whitespace().map(String::from);
+		let height: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
+		let width: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
+		let mut m = vec![vec![Tile::FLOOR; width]; height];
+		for row in m.iter_mut() {
+			let s = tokens.next().ok_or("malformatted level file")?;
 			for (j, c) in s.chars().enumerate() {
-				m[i][j] = match c {
+				row[j] = match c {
 					'.' => Tile::FLOOR,
 					'#' => Tile::WALL,
 					'D' => Tile::DOOR,
@@ -60,84 +66,121 @@ impl<'a> Game<'a> {
 			}
 		}
 		let mut pos = (0usize, 0usize);
-		pos.0 = v.next().ok_or("malformatted level file")?.parse()?;
-		pos.1 = v.next().ok_or("malformatted level file")?.parse()?;
-		let ncubes: usize = v.next().ok_or("malformatted level file")?.parse()?;
+		pos.0 = tokens.next().ok_or("malformatted level file")?.parse()?;
+		pos.1 = tokens.next().ok_or("malformatted level file")?.parse()?;
+		let ncubes: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
 		for _ in 0..ncubes {
-			let x: usize = v.next().ok_or("malformatted level file")?.parse()?;
-			let y: usize = v.next().ok_or("malformatted level file")?.parse()?;
-			let r: u8 = v.next().ok_or("malformatted level file")?.parse()?;
-			let g: u8 = v.next().ok_or("malformatted level file")?.parse()?;
-			let b: u8 = v.next().ok_or("malformatted level file")?.parse()?;
-			let num: i16 = v.next().ok_or("malformatted level file")?.parse()?;
-			m[y][x] = Tile::CUBE(Cube {
-				n: num,
-				col: Color([r, g, b, 255]),
-			});
+			let y: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
+			let x: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
+			let c: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
+			let num: i16 = tokens.next().ok_or("malformatted level file")?.parse()?;
+			m[y][x] = Tile::CUBE(Cube { n: num, col: c });
 		}
-
 		Ok(Game {
-			pos: pos,
-			m: m,
-			res: res,
+			lvl_num,
+			pos,
+			m,
+			undo_stack: vec![],
+			anime: 0,
 		})
 	}
 	fn is_inside(&self, p: (usize, usize)) -> bool {
 		p.0 < self.m.len() && p.1 < self.m[0].len()
 	}
-	fn mov(&mut self, dir: Direction) -> bool {
-		let np = step(self.pos, dir);
-		if self.is_inside(np) && self.mov_block(np, dir) {
-			self.pos = np;
-			true
-		} else {
-			false
-		}
-	}
-	fn mov_block(&mut self, p: (usize, usize), dir: Direction) -> bool {
-		match &self.m[p.0][p.1] {
-			Tile::FLOOR => true,
-			Tile::CUBE(x) => {
-				let np = step(p, dir);
-				if !self.is_inside(np) {
-					false
-				} else {
-					match &self.m[np.0][np.1] {
-						Tile::CUBE(y) => {
-							if y.col == x.col {
-								self.m[np.0][np.1] = if x.n + y.n == 0 {
-									Tile::FLOOR
-								} else {
-									Tile::CUBE(Cube {
-										col: x.col,
-										n: x.n + y.n,
-									})
-								};
-								self.m[p.0][p.1] = Tile::FLOOR;
-								true
-							} else {
-								if self.mov_block(np, dir) {
-									self.m[np.0][np.1] = self.m[p.0][p.1];
-									self.m[p.0][p.1] = Tile::FLOOR;
-									true
-								} else {
-									false
+	fn mov(&mut self, dir: Direction) {
+		let mut p = step(self.pos, dir);
+		if self.is_inside(p) {
+			match self.m[p.0][p.1] {
+				Tile::FLOOR | Tile::DOOR => {
+					self.anime = ANIMATION_FRAMES;
+					self.pos = p;
+					self.undo_stack.push((dir, 0, None));
+				}
+				Tile::CUBE(x) => {
+					let mut last_col = x.col;
+					p = step(p, dir);
+					let mut moved_cubes = 1usize;
+					while self.is_inside(p)
+						&& match self.m[p.0][p.1] {
+							Tile::CUBE(x) => {
+								let ret = x.col != last_col;
+								last_col = x.col;
+								ret
+							}
+							_ => false,
+						} {
+						moved_cubes += 1;
+						p = step(p, dir);
+					}
+					if self.is_inside(p) {
+						match self.m[p.0][p.1] {
+							Tile::FLOOR => {
+								self.undo_stack.push((dir, moved_cubes, None));
+								while p != self.pos {
+									let np = unstep(p, dir);
+									self.m[p.0][p.1] = self.m[np.0][np.1];
+									p = np;
 								}
+								self.anime = ANIMATION_FRAMES;
+								self.pos = step(self.pos, dir);
 							}
-						}
-						_ => {
-							if self.mov_block(np, dir) {
-								self.m[np.0][np.1] = self.m[p.0][p.1];
-								self.m[p.0][p.1] = Tile::FLOOR;
-								true
-							} else {
-								false
+							Tile::CUBE(x) => {
+								self.undo_stack.push((dir, moved_cubes, Some(x)));
+								let np = unstep(p, dir);
+								if let Tile::CUBE(y) = self.m[np.0][np.1] {
+									self.m[p.0][p.1] = match x.n + y.n {
+										0 => Tile::FLOOR,
+										num => Tile::CUBE(Cube { col: x.col, n: num }),
+									}
+								}
+								p = np;
+								while p != self.pos {
+									let np = unstep(p, dir);
+									self.m[p.0][p.1] = self.m[np.0][np.1];
+									p = np;
+								}
+								self.anime = ANIMATION_FRAMES;
+								self.pos = step(self.pos, dir);
 							}
+							_ => {}
 						}
 					}
 				}
+				_ => {}
 			}
-			_ => false,
+		}
+	}
+	fn undo(&mut self) {
+		if let Some(st) = self.undo_stack.pop() {
+			let mut p = self.pos;
+			self.pos = unstep(self.pos, st.0);
+			for _ in 0..st.1 {
+				let np = step(p, st.0);
+				self.m[p.0][p.1] = self.m[np.0][np.1];
+				p = np;
+			}
+			let np = p;
+			p = unstep(p, st.0);
+			if let Some(x) = st.2 {
+				match self.m[p.0][p.1] {
+					Tile::CUBE(y) => {
+						self.m[np.0][np.1] = Tile::CUBE(x);
+						self.m[p.0][p.1] = Tile::CUBE(Cube {
+							col: x.col,
+							n: y.n - x.n,
+						});
+					}
+					_ => {
+						self.m[np.0][np.1] = Tile::CUBE(x);
+						self.m[p.0][p.1] = Tile::CUBE(Cube {
+							col: x.col,
+							n: -x.n,
+						});
+					}
+				}
+			} else if st.1 > 0 {
+				self.m[np.0][np.1] = Tile::FLOOR;
+			}
 		}
 	}
 	fn get_mouse_pos(&self) -> (usize, usize) {
@@ -151,15 +194,186 @@ impl<'a> Game<'a> {
 		}
 	}
 }
-impl<'a> State<'a> for Game<'a> {
-	fn update(&'a mut self) -> Transition {
-		if is_key_pressed(KeyCode::Right) {
+fn step_fun(x: f32) -> f32 {
+	x * x
+}
+impl State for Game {
+	fn draw_update(&mut self, o: &mut Opts) -> Vec<Option<Box<dyn State>>> {
+		clear_background(BLACK);
+		let scale =
+			(screen_height() / self.m.len() as f32).min(screen_width() / self.m[0].len() as f32);
+		let mut delta = (0.0, 0.0);
+		if let Some(x) = self.undo_stack.last() {
+			match x.0 {
+				Direction::LEFT => {
+					delta.1 = -step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
+				}
+				Direction::RIGHT => {
+					delta.1 = step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
+				}
+				Direction::UP => {
+					delta.0 = -step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
+				}
+				Direction::DOWN => {
+					delta.0 = step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
+				}
+			}
+		}
+		for i in 0..self.m.len() {
+			for j in 0..self.m[0].len() {
+				match self.m[i][j] {
+					Tile::FLOOR | Tile::CUBE(_) => {
+						draw_rectangle(j as f32 * scale, i as f32 * scale, scale, scale, WHITE);
+					}
+					Tile::DOOR => {
+						draw_circle(
+							(j as f32 + 0.5) * scale,
+							(i as f32 + 0.5) * scale,
+							scale * 0.40,
+							WHITE,
+						);
+					}
+					_ => {}
+				}
+			}
+		}
+		if self.anime > 0 {
+			if let Some(x) = self.undo_stack.last() {
+				if let Some(c) = x.2 {
+					let mut p = self.pos;
+					match x.0 {
+						Direction::LEFT => {
+							p.1 -= x.1;
+						}
+						Direction::RIGHT => {
+							p.1 += x.1;
+						}
+						Direction::UP => {
+							p.0 -= x.1;
+						}
+						Direction::DOWN => {
+							p.0 += x.1;
+						}
+					}
+					draw_rectangle(
+						(p.1 as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
+						(p.0 as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
+						scale * CUBE_SIZE,
+						scale * CUBE_SIZE,
+						Color(o.palette[c.col]),
+					);
+					if let Tile::FLOOR = self.m[p.0][p.1] {
+						draw_rectangle(
+							(p.1 as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.1) * scale,
+							(p.0 as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.0) * scale,
+							scale * CUBE_SIZE,
+							scale * CUBE_SIZE,
+							Color(o.palette[c.col]),
+						);
+					}
+				}
+			}
+		}
+		for i in 0..self.m.len() {
+			for j in 0..self.m[0].len() {
+				if let Tile::CUBE(x) = self.m[i][j] {
+					let to_animate = if let Some(x) = self.undo_stack.last() {
+						match x.0 {
+							Direction::LEFT => {
+								i == self.pos.0 && j < self.pos.1 && self.pos.1 - j <= x.1
+							}
+							Direction::RIGHT => {
+								i == self.pos.0 && j > self.pos.1 && j - self.pos.1 <= x.1
+							}
+							Direction::UP => {
+								j == self.pos.1 && i < self.pos.0 && self.pos.0 - i <= x.1
+							}
+							Direction::DOWN => {
+								j == self.pos.1 && i > self.pos.0 && i - self.pos.0 <= x.1
+							}
+						}
+					} else {
+						false
+					};
+					let txt = x.n.to_string();
+					let font_size = scale * 2.0 / 3.0;
+					let text_size = measure_text(&txt, font_size);
+					if to_animate {
+						draw_rectangle(
+							(j as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.1) * scale,
+							(i as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.0) * scale,
+							scale * CUBE_SIZE,
+							scale * CUBE_SIZE,
+							Color(o.palette[x.col]),
+						);
+						draw_text(
+							&txt,
+							(j as f32 + 0.5 - delta.1) * scale - text_size.0 / 2.0,
+							(i as f32 + 0.25 - delta.0) * scale - text_size.1 / 2.0,
+							font_size,
+							BLACK,
+						);
+					} else {
+						draw_rectangle(
+							(j as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
+							(i as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
+							scale * CUBE_SIZE,
+							scale * CUBE_SIZE,
+							Color(o.palette[x.col]),
+						);
+						draw_text(
+							&txt,
+							(j as f32 + 0.5) * scale - text_size.0 / 2.0,
+							(i as f32 + 0.25) * scale - text_size.1 / 2.0,
+							font_size,
+							BLACK,
+						);
+					}
+				}
+			}
+		}
+		draw_circle(
+			(self.pos.1 as f32 + 0.5 - delta.1) * scale,
+			(self.pos.0 as f32 + 0.5 - delta.0) * scale,
+			scale * 0.40,
+			BLACK,
+		);
+
+		if is_key_pressed(KeyCode::Escape) {
+			return vec![Some(Box::new(Pause::new()))];
+		}
+		if self.anime > 0 {
+			self.anime -= 1;
+			return vec![];
+		}
+
+		let win = if let Tile::DOOR = self.m[self.pos.0][self.pos.1] {
+			true
+		} else {
+			false
+		};
+		if win {
+			if self.lvl_num + 1 == o.unlocked {
+				o.unlocked += 1;
+				o.save();
+			}
+			let mut ret = Vec::<Option<Box<dyn State>>>::new();
+			ret.push(None);
+			if self.lvl_num + 1 < super::LVLS.len() {
+				ret.push(Some(Box::new(Game::new(self.lvl_num + 1).unwrap())));
+			}
+			return ret;
+		}
+
+		if is_key_pressed(KeyCode::U) {
+			self.undo();
+		} else if is_key_down(KeyCode::Right) {
 			self.mov(Direction::RIGHT);
-		} else if is_key_pressed(KeyCode::Left) {
+		} else if is_key_down(KeyCode::Left) {
 			self.mov(Direction::LEFT);
-		} else if is_key_pressed(KeyCode::Up) {
+		} else if is_key_down(KeyCode::Up) {
 			self.mov(Direction::UP);
-		} else if is_key_pressed(KeyCode::Down) {
+		} else if is_key_down(KeyCode::Down) {
 			self.mov(Direction::DOWN);
 		} else if is_mouse_button_down(MouseButton::Left) {
 			if self.get_mouse_pos() == step(self.pos, Direction::RIGHT) {
@@ -172,94 +386,6 @@ impl<'a> State<'a> for Game<'a> {
 				self.mov(Direction::DOWN);
 			}
 		}
-		return Transition::POP(0);
-	}
-	fn draw(&mut self) {
-		let scale =
-			(screen_height() / self.m.len() as f32).min(screen_width() / self.m[0].len() as f32);
-		for i in 0..self.m.len() {
-			for j in 0..self.m[0].len() {
-				match self.m[i][j] {
-					Tile::FLOOR => {
-						draw_texture_ex(
-							self.res.floor,
-							j as f32 * scale,
-							i as f32 * scale,
-							WHITE,
-							DrawTextureParams {
-								dest_size: Some(vec2(scale, scale)),
-								..Default::default()
-							},
-						);
-					}
-					Tile::WALL => {
-						draw_texture_ex(
-							self.res.wall,
-							j as f32 * scale,
-							i as f32 * scale,
-							WHITE,
-							DrawTextureParams {
-								dest_size: Some(vec2(scale, scale)),
-								..Default::default()
-							},
-						);
-					}
-					Tile::DOOR => {
-						draw_texture_ex(
-							self.res.door,
-							j as f32 * scale,
-							i as f32 * scale,
-							WHITE,
-							DrawTextureParams {
-								dest_size: Some(vec2(scale, scale)),
-								..Default::default()
-							},
-						);
-					}
-					Tile::CUBE(x) => {
-						draw_texture_ex(
-							self.res.floor,
-							j as f32 * scale,
-							i as f32 * scale,
-							WHITE,
-							DrawTextureParams {
-								dest_size: Some(vec2(scale, scale)),
-								..Default::default()
-							},
-						);
-						draw_texture_ex(
-							self.res.cube,
-							j as f32 * scale,
-							i as f32 * scale,
-							x.col,
-							DrawTextureParams {
-								dest_size: Some(vec2(scale, scale)),
-								..Default::default()
-							},
-						);
-						let txt = x.n.to_string();
-						let font_size = scale * 2.0 / 3.0;
-						let text_size = measure_text(&txt, font_size);
-						draw_text(
-							&txt,
-							(j as f32 + 0.5) * scale - text_size.0 / 2.0,
-							(i as f32 + 0.25) * scale - text_size.1 / 2.0,
-							font_size,
-							BLACK,
-						);
-					}
-				}
-			}
-		}
-		draw_texture_ex(
-			self.res.player,
-			self.pos.1 as f32 * scale,
-			self.pos.0 as f32 * scale,
-			WHITE,
-			DrawTextureParams {
-				dest_size: Some(vec2(scale, scale)),
-				..Default::default()
-			},
-		);
+		return vec![];
 	}
 }
