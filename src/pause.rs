@@ -1,6 +1,8 @@
 use crate::option_menu::OptionMenu;
 use crate::opts::Opts;
 use crate::state::*;
+use macroquad::prelude::*;
+use macroquad::ui::root_ui;
 use macroquad::*;
 
 pub struct Pause {}
@@ -15,16 +17,10 @@ impl State for Pause {
 			return vec![None];
 		}
 		let mut ret = Vec::<Option<Box<dyn State>>>::new();
-		draw_window(
+		root_ui().window(
 			hash!(),
 			vec2(-1.0, -1.0),
 			vec2(screen_width() + 2.0, screen_height() + 2.0),
-			WindowParams {
-				label: "".to_string(),
-				movable: false,
-				close_button: false,
-				titlebar: false,
-			},
 			|ui| {
 				if ui.button(None, "RETURN TO GAME") {
 					ret.push(None);

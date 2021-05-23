@@ -1,5 +1,7 @@
 use crate::opts::Opts;
 use crate::state::*;
+use macroquad::prelude::*;
+use macroquad::ui::root_ui;
 use macroquad::*;
 
 pub struct OptionMenu {
@@ -26,16 +28,10 @@ impl State for OptionMenu {
 			return vec![None];
 		}
 		let mut ret = Vec::<Option<Box<dyn State>>>::new();
-		draw_window(
+		root_ui().window(
 			hash!(),
 			vec2(-1.0, -1.0),
 			vec2(screen_width() + 2.0, screen_height() + 2.0),
-			WindowParams {
-				label: "".to_string(),
-				movable: false,
-				close_button: false,
-				titlebar: false,
-			},
 			|ui| {
 				if ui.button(None, "SAVE") {
 					o.unlocked = self
@@ -58,7 +54,7 @@ impl State for OptionMenu {
 				}
 				ui.separator();
 				ui.label(None, "unlocked levels:");
-				ui.input_field(hash!(), "unlocked levels", &mut self.unlocked_str);
+				ui.input_text(hash!(), "unlocked levels", &mut self.unlocked_str);
 				ui.separator();
 				for i in 0..6 {
 					ui.tree_node(hash!(i * 4) as u64, &format!("color {}", i), |ui| {

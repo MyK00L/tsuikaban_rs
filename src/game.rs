@@ -1,7 +1,7 @@
 use crate::opts::Opts;
 use crate::pause::Pause;
 use crate::state::*;
-use macroquad::*;
+use macroquad::prelude::*;
 
 const ANIMATION_FRAMES: usize = 6;
 const CUBE_SIZE: f32 = 0.9;
@@ -260,7 +260,7 @@ impl State for Game {
 						(p.0 as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
 						scale * CUBE_SIZE,
 						scale * CUBE_SIZE,
-						Color(o.palette[c.col]),
+						o.palette[c.col].into(),
 					);
 					if let Tile::FLOOR = self.m[p.0][p.1] {
 						draw_rectangle(
@@ -268,7 +268,7 @@ impl State for Game {
 							(p.0 as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.0) * scale,
 							scale * CUBE_SIZE,
 							scale * CUBE_SIZE,
-							Color(o.palette[c.col]),
+							o.palette[c.col].into(),
 						);
 					}
 				}
@@ -279,37 +279,29 @@ impl State for Game {
 				if let Tile::CUBE(x) = self.m[i][j] {
 					let to_animate = if let Some(x) = self.undo_stack.last() {
 						match x.0 {
-							Direction::LEFT => {
-								i == self.pos.0 && j < self.pos.1 && self.pos.1 - j <= x.1
-							}
-							Direction::RIGHT => {
-								i == self.pos.0 && j > self.pos.1 && j - self.pos.1 <= x.1
-							}
-							Direction::UP => {
-								j == self.pos.1 && i < self.pos.0 && self.pos.0 - i <= x.1
-							}
-							Direction::DOWN => {
-								j == self.pos.1 && i > self.pos.0 && i - self.pos.0 <= x.1
-							}
+							Direction::LEFT => i == self.pos.0 && j < self.pos.1 && self.pos.1 - j <= x.1,
+							Direction::RIGHT => i == self.pos.0 && j > self.pos.1 && j - self.pos.1 <= x.1,
+							Direction::UP => j == self.pos.1 && i < self.pos.0 && self.pos.0 - i <= x.1,
+							Direction::DOWN => j == self.pos.1 && i > self.pos.0 && i - self.pos.0 <= x.1,
 						}
 					} else {
 						false
 					};
 					let txt = x.n.to_string();
 					let font_size = scale * 2.0 / 3.0;
-					let text_size = measure_text(&txt, font_size);
+					let text_size = measure_text(&txt, None, 1, font_size);
 					if to_animate {
 						draw_rectangle(
 							(j as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.1) * scale,
 							(i as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.0) * scale,
 							scale * CUBE_SIZE,
 							scale * CUBE_SIZE,
-							Color(o.palette[x.col]),
+							o.palette[x.col].into(),
 						);
 						draw_text(
 							&txt,
-							(j as f32 + 0.5 - delta.1) * scale - text_size.0 / 2.0,
-							(i as f32 + 0.25 - delta.0) * scale - text_size.1 / 2.0,
+							(j as f32 + 0.5 - delta.1) * scale - text_size.width / 2.0,
+							(i as f32 + 0.25 - delta.0) * scale - text_size.height / 2.0 + text_size.offset_y,
 							font_size,
 							BLACK,
 						);
@@ -319,12 +311,12 @@ impl State for Game {
 							(i as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
 							scale * CUBE_SIZE,
 							scale * CUBE_SIZE,
-							Color(o.palette[x.col]),
+							o.palette[x.col].into(),
 						);
 						draw_text(
 							&txt,
-							(j as f32 + 0.5) * scale - text_size.0 / 2.0,
-							(i as f32 + 0.25) * scale - text_size.1 / 2.0,
+							(j as f32 + 0.5) * scale - text_size.width / 2.0,
+							(i as f32 + 0.25) * scale - text_size.height / 2.0 + text_size.offset_y,
 							font_size,
 							BLACK,
 						);

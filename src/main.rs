@@ -5,7 +5,8 @@ mod option_menu;
 mod opts;
 mod pause;
 mod state;
-use macroquad::*;
+use macroquad::prelude::*;
+use macroquad::ui::root_ui;
 use state::*;
 use std::boxed::Box;
 
@@ -31,27 +32,68 @@ const LVLS: [&str; 19] = [
 	include_str!("../lvls/level18.txt"),
 ];
 
-fn main() {
-	macroquad::Window::new("Tsuikaban", amain());
-}
-
-async fn amain() {
+#[macroquad::main("Tsuikaban")]
+async fn main() {
 	let mut o = opts::Opts::new();
-	set_ui_style(megaui::Style {
-		//scroll_width: 64.0,
-		button_background_focused: megaui::Color::from_rgb(31, 31, 31),
-		button_background_focused_hovered: megaui::Color::from_rgb(63, 63, 63),
-		button_background_focused_clicked: megaui::Color::from_rgb(127, 127, 127),
-		button_background_inactive: megaui::Color::from_rgb(31, 31, 31),
-		inactive_text: megaui::Color::from_rgb(255, 255, 255),
-		focused_text: megaui::Color::from_rgb(255, 255, 255),
-		scroll_multiplier: 16.0,
-		margin: 16.0,
-		margin_button: 16.0,
-		window_background_focused: megaui::Color::from_rgb(0, 0, 0),
-		window_background_inactive: megaui::Color::from_rgb(0, 0, 0),
-		..Default::default()
-	});
+	let skin = {
+		let font_size = 24;
+
+		let ds = root_ui()
+			.style_builder()
+			.color(Color::from_rgba(31, 31, 31, 255))
+			.color_hovered(Color::from_rgba(63, 63, 63, 255))
+			.color_clicked(Color::from_rgba(127, 127, 127, 255))
+			.text_color(Color::from_rgba(255, 255, 255, 255))
+			.font_size(font_size)
+			.margin(macroquad::math::RectOffset {
+				left: 1.0,
+				right: 1.0,
+				bottom: 1.0,
+				top: 1.0,
+			})
+			.build();
+
+		let button_style = root_ui()
+			.style_builder()
+			.color(Color::from_rgba(31, 31, 31, 255))
+			.color_hovered(Color::from_rgba(63, 63, 63, 255))
+			.color_clicked(Color::from_rgba(127, 127, 127, 255))
+			.text_color(Color::from_rgba(255, 255, 255, 255))
+			.font_size(font_size)
+			.margin(macroquad::math::RectOffset {
+				left: 16.0,
+				right: 16.0,
+				bottom: 16.0,
+				top: 16.0,
+			})
+			.build();
+		let window_style = root_ui()
+			.style_builder()
+			.color(Color::from_rgba(0, 0, 0, 255))
+			.text_color(Color::from_rgba(255, 255, 255, 255))
+			.font_size(font_size)
+			.build();
+
+		macroquad::ui::Skin {
+			label_style: ds.clone(),
+			button_style: button_style,
+			tabbar_style: ds.clone(),
+			window_style: window_style,
+			editbox_style: ds.clone(),
+			window_titlebar_style: ds.clone(),
+			scrollbar_style: ds.clone(),
+			scrollbar_handle_style: ds.clone(),
+			checkbox_style: ds.clone(),
+			group_style: ds.clone(),
+			margin: 16.0f32,
+			/*title_height: 1.0f32,
+			scroll_width: 1.0f32,
+			scroll_multiplier: 1.0f32,*/
+			..root_ui().default_skin()
+		}
+	};
+	root_ui().push_skin(&skin);
+
 	let mut stack = Vec::<Box<dyn State>>::new();
 	stack.push(Box::new(main_menu::MainMenu::new()));
 	while !stack.is_empty() {
