@@ -27,9 +27,9 @@ const LVLS: [&str; 19] = [
 	include_str!("../lvls/level13.txt"),
 	include_str!("../lvls/level14.txt"),
 	include_str!("../lvls/level15.txt"),
-	include_str!("../lvls/level16.txt"),
 	include_str!("../lvls/level17.txt"),
 	include_str!("../lvls/level18.txt"),
+	include_str!("../lvls/level16.txt"),
 ];
 
 #[macroquad::main("Tsuikaban")]
@@ -67,6 +67,7 @@ async fn main() {
 				top: 16.0,
 			})
 			.build();
+
 		let window_style = root_ui()
 			.style_builder()
 			.color(Color::from_rgba(0, 0, 0, 255))
@@ -86,9 +87,6 @@ async fn main() {
 			checkbox_style: ds.clone(),
 			group_style: ds.clone(),
 			margin: 16.0f32,
-			/*title_height: 1.0f32,
-			scroll_width: 1.0f32,
-			scroll_multiplier: 1.0f32,*/
 			..root_ui().default_skin()
 		}
 	};

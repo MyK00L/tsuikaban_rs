@@ -301,7 +301,7 @@ impl State for Game {
 						draw_text(
 							&txt,
 							(j as f32 + 0.5 - delta.1) * scale - text_size.width / 2.0,
-							(i as f32 + 0.25 - delta.0) * scale - text_size.height / 2.0 + text_size.offset_y,
+							(i as f32 + 0.5 - delta.0) * scale + text_size.offset_y / 4.0,
 							font_size,
 							BLACK,
 						);
@@ -316,7 +316,7 @@ impl State for Game {
 						draw_text(
 							&txt,
 							(j as f32 + 0.5) * scale - text_size.width / 2.0,
-							(i as f32 + 0.25) * scale - text_size.height / 2.0 + text_size.offset_y,
+							(i as f32 + 0.5) * scale + text_size.offset_y / 4.0,
 							font_size,
 							BLACK,
 						);
