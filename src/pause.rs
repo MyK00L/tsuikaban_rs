@@ -40,7 +40,7 @@ impl State for Pause {
 					ret.push(None);
 					ret.push(None);
 					ret.push(None);
-					return;
+					//return;
 				}
 			},
 		);

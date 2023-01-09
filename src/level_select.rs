@@ -23,14 +23,14 @@ impl State for LevelSelect {
 			vec2(screen_width() + 2.0, screen_height() + 2.0),
 			|ui| {
 				for i in 0..o.unlocked {
-					if ui.button(None, &i.to_string()) {
+					if ui.button(None, i.to_string()) {
 						ret.push(Some(Box::new(Game::new(i).unwrap())));
 						return;
 					}
 				}
 				ui.separator();
 				for i in o.unlocked..super::LVLS.len() {
-					if ui.button(None, &i.to_string()) {
+					if ui.button(None, i.to_string()) {
 						return;
 					}
 				}

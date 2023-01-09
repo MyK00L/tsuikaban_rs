@@ -57,7 +57,7 @@ impl State for OptionMenu {
 				ui.input_text(hash!(), "unlocked levels", &mut self.unlocked_str);
 				ui.separator();
 				for i in 0..6 {
-					ui.tree_node(hash!(i * 4) as u64, &format!("color {}", i), |ui| {
+					ui.tree_node(hash!(i * 4), &format!("color {i}"), |ui| {
 						ui.slider(
 							hash!(i * 4 + 1),
 							"RED",
@@ -84,7 +84,7 @@ impl State for OptionMenu {
 					*o = Opts::default();
 					o.unlocked = tmp;
 					*self = OptionMenu::new(o);
-					return;
+					//return;
 				}
 			},
 		);

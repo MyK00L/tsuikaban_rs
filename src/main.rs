@@ -77,15 +77,15 @@ async fn main() {
 
 		macroquad::ui::Skin {
 			label_style: ds.clone(),
-			button_style: button_style,
+			button_style,
 			tabbar_style: ds.clone(),
-			window_style: window_style,
+			window_style,
 			editbox_style: ds.clone(),
 			window_titlebar_style: ds.clone(),
 			scrollbar_style: ds.clone(),
 			scrollbar_handle_style: ds.clone(),
 			checkbox_style: ds.clone(),
-			group_style: ds.clone(),
+			group_style: ds,
 			margin: 16.0f32,
 			..root_ui().default_skin()
 		}

@@ -8,25 +8,25 @@ const CUBE_SIZE: f32 = 0.9;
 
 #[derive(Clone, Copy, Debug)]
 enum Direction {
-	LEFT,
-	RIGHT,
-	UP,
-	DOWN,
+	Left,
+	Right,
+	Up,
+	Down,
 }
 fn step(p: (usize, usize), dir: Direction) -> (usize, usize) {
 	match dir {
-		Direction::LEFT => (p.0, p.1.wrapping_sub(1)),
-		Direction::RIGHT => (p.0, p.1 + 1),
-		Direction::UP => (p.0.wrapping_sub(1), p.1),
-		Direction::DOWN => (p.0 + 1, p.1),
+		Direction::Left => (p.0, p.1.wrapping_sub(1)),
+		Direction::Right => (p.0, p.1 + 1),
+		Direction::Up => (p.0.wrapping_sub(1), p.1),
+		Direction::Down => (p.0 + 1, p.1),
 	}
 }
 fn unstep(p: (usize, usize), dir: Direction) -> (usize, usize) {
 	match dir {
-		Direction::LEFT => (p.0, p.1 + 1),
-		Direction::RIGHT => (p.0, p.1.wrapping_sub(1)),
-		Direction::UP => (p.0 + 1, p.1),
-		Direction::DOWN => (p.0.wrapping_sub(1), p.1),
+		Direction::Left => (p.0, p.1 + 1),
+		Direction::Right => (p.0, p.1.wrapping_sub(1)),
+		Direction::Up => (p.0 + 1, p.1),
+		Direction::Down => (p.0.wrapping_sub(1), p.1),
 	}
 }
 #[derive(Clone, Copy, Debug, Default)]
@@ -36,10 +36,10 @@ struct Cube {
 }
 #[derive(Clone, Copy, Debug)]
 enum Tile {
-	FLOOR,
-	WALL,
-	DOOR,
-	CUBE(Cube),
+	Floor,
+	Wall,
+	Door,
+	Cube(Cube),
 }
 pub struct Game {
 	lvl_num: usize,
@@ -53,15 +53,15 @@ impl Game {
 		let mut tokens = super::LVLS[lvl_num].split_whitespace().map(String::from);
 		let height: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
 		let width: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
-		let mut m = vec![vec![Tile::FLOOR; width]; height];
+		let mut m = vec![vec![Tile::Floor; width]; height];
 		for row in m.iter_mut() {
 			let s = tokens.next().ok_or("malformatted level file")?;
 			for (j, c) in s.chars().enumerate() {
 				row[j] = match c {
-					'.' => Tile::FLOOR,
-					'#' => Tile::WALL,
-					'D' => Tile::DOOR,
-					_ => Tile::FLOOR,
+					'.' => Tile::Floor,
+					'#' => Tile::Wall,
+					'D' => Tile::Door,
+					_ => Tile::Floor,
 				}
 			}
 		}
@@ -74,7 +74,7 @@ impl Game {
 			let x: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
 			let c: usize = tokens.next().ok_or("malformatted level file")?.parse()?;
 			let num: i16 = tokens.next().ok_or("malformatted level file")?.parse()?;
-			m[y][x] = Tile::CUBE(Cube { n: num, col: c });
+			m[y][x] = Tile::Cube(Cube { n: num, col: c });
 		}
 		Ok(Game {
 			lvl_num,
@@ -91,18 +91,18 @@ impl Game {
 		let mut p = step(self.pos, dir);
 		if self.is_inside(p) {
 			match self.m[p.0][p.1] {
-				Tile::FLOOR | Tile::DOOR => {
+				Tile::Floor | Tile::Door => {
 					self.anime = ANIMATION_FRAMES;
 					self.pos = p;
 					self.undo_stack.push((dir, 0, None));
 				}
-				Tile::CUBE(x) => {
+				Tile::Cube(x) => {
 					let mut last_col = x.col;
 					p = step(p, dir);
 					let mut moved_cubes = 1usize;
 					while self.is_inside(p)
 						&& match self.m[p.0][p.1] {
-							Tile::CUBE(x) => {
+							Tile::Cube(x) => {
 								let ret = x.col != last_col;
 								last_col = x.col;
 								ret
@@ -114,7 +114,7 @@ impl Game {
 					}
 					if self.is_inside(p) {
 						match self.m[p.0][p.1] {
-							Tile::FLOOR => {
+							Tile::Floor => {
 								self.undo_stack.push((dir, moved_cubes, None));
 								while p != self.pos {
 									let np = unstep(p, dir);
@@ -124,13 +124,13 @@ impl Game {
 								self.anime = ANIMATION_FRAMES;
 								self.pos = step(self.pos, dir);
 							}
-							Tile::CUBE(x) => {
+							Tile::Cube(x) => {
 								self.undo_stack.push((dir, moved_cubes, Some(x)));
 								let np = unstep(p, dir);
-								if let Tile::CUBE(y) = self.m[np.0][np.1] {
+								if let Tile::Cube(y) = self.m[np.0][np.1] {
 									self.m[p.0][p.1] = match x.n + y.n {
-										0 => Tile::FLOOR,
-										num => Tile::CUBE(Cube { col: x.col, n: num }),
+										0 => Tile::Floor,
+										num => Tile::Cube(Cube { col: x.col, n: num }),
 									}
 								}
 								p = np;
@@ -163,23 +163,23 @@ impl Game {
 			p = unstep(p, st.0);
 			if let Some(x) = st.2 {
 				match self.m[p.0][p.1] {
-					Tile::CUBE(y) => {
-						self.m[np.0][np.1] = Tile::CUBE(x);
-						self.m[p.0][p.1] = Tile::CUBE(Cube {
+					Tile::Cube(y) => {
+						self.m[np.0][np.1] = Tile::Cube(x);
+						self.m[p.0][p.1] = Tile::Cube(Cube {
 							col: x.col,
 							n: y.n - x.n,
 						});
 					}
 					_ => {
-						self.m[np.0][np.1] = Tile::CUBE(x);
-						self.m[p.0][p.1] = Tile::CUBE(Cube {
+						self.m[np.0][np.1] = Tile::Cube(x);
+						self.m[p.0][p.1] = Tile::Cube(Cube {
 							col: x.col,
 							n: -x.n,
 						});
 					}
 				}
 			} else if st.1 > 0 {
-				self.m[np.0][np.1] = Tile::FLOOR;
+				self.m[np.0][np.1] = Tile::Floor;
 			}
 		}
 	}
@@ -205,16 +205,16 @@ impl State for Game {
 		let mut delta = (0.0, 0.0);
 		if let Some(x) = self.undo_stack.last() {
 			match x.0 {
-				Direction::LEFT => {
+				Direction::Left => {
 					delta.1 = -step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
 				}
-				Direction::RIGHT => {
+				Direction::Right => {
 					delta.1 = step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
 				}
-				Direction::UP => {
+				Direction::Up => {
 					delta.0 = -step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
 				}
-				Direction::DOWN => {
+				Direction::Down => {
 					delta.0 = step_fun(self.anime as f32 / ANIMATION_FRAMES as f32);
 				}
 			}
@@ -222,10 +222,10 @@ impl State for Game {
 		for i in 0..self.m.len() {
 			for j in 0..self.m[0].len() {
 				match self.m[i][j] {
-					Tile::FLOOR | Tile::CUBE(_) => {
+					Tile::Floor | Tile::Cube(_) => {
 						draw_rectangle(j as f32 * scale, i as f32 * scale, scale, scale, WHITE);
 					}
-					Tile::DOOR => {
+					Tile::Door => {
 						draw_circle(
 							(j as f32 + 0.5) * scale,
 							(i as f32 + 0.5) * scale,
@@ -242,16 +242,16 @@ impl State for Game {
 				if let Some(c) = x.2 {
 					let mut p = self.pos;
 					match x.0 {
-						Direction::LEFT => {
+						Direction::Left => {
 							p.1 -= x.1;
 						}
-						Direction::RIGHT => {
+						Direction::Right => {
 							p.1 += x.1;
 						}
-						Direction::UP => {
+						Direction::Up => {
 							p.0 -= x.1;
 						}
-						Direction::DOWN => {
+						Direction::Down => {
 							p.0 += x.1;
 						}
 					}
@@ -262,7 +262,7 @@ impl State for Game {
 						scale * CUBE_SIZE,
 						o.palette[c.col].into(),
 					);
-					if let Tile::FLOOR = self.m[p.0][p.1] {
+					if let Tile::Floor = self.m[p.0][p.1] {
 						draw_rectangle(
 							(p.1 as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.1) * scale,
 							(p.0 as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.0) * scale,
@@ -276,13 +276,13 @@ impl State for Game {
 		}
 		for i in 0..self.m.len() {
 			for j in 0..self.m[0].len() {
-				if let Tile::CUBE(x) = self.m[i][j] {
+				if let Tile::Cube(x) = self.m[i][j] {
 					let to_animate = if let Some(x) = self.undo_stack.last() {
 						match x.0 {
-							Direction::LEFT => i == self.pos.0 && j < self.pos.1 && self.pos.1 - j <= x.1,
-							Direction::RIGHT => i == self.pos.0 && j > self.pos.1 && j - self.pos.1 <= x.1,
-							Direction::UP => j == self.pos.1 && i < self.pos.0 && self.pos.0 - i <= x.1,
-							Direction::DOWN => j == self.pos.1 && i > self.pos.0 && i - self.pos.0 <= x.1,
+							Direction::Left => i == self.pos.0 && j < self.pos.1 && self.pos.1 - j <= x.1,
+							Direction::Right => i == self.pos.0 && j > self.pos.1 && j - self.pos.1 <= x.1,
+							Direction::Up => j == self.pos.1 && i < self.pos.0 && self.pos.0 - i <= x.1,
+							Direction::Down => j == self.pos.1 && i > self.pos.0 && i - self.pos.0 <= x.1,
 						}
 					} else {
 						false
@@ -339,11 +339,7 @@ impl State for Game {
 			return vec![];
 		}
 
-		let win = if let Tile::DOOR = self.m[self.pos.0][self.pos.1] {
-			true
-		} else {
-			false
-		};
+		let win = matches!(self.m[self.pos.0][self.pos.1], Tile::Door);
 		if win {
 			if self.lvl_num + 1 == o.unlocked {
 				o.unlocked += 1;
@@ -360,24 +356,24 @@ impl State for Game {
 		if is_key_pressed(KeyCode::U) {
 			self.undo();
 		} else if is_key_down(KeyCode::Right) {
-			self.mov(Direction::RIGHT);
+			self.mov(Direction::Right);
 		} else if is_key_down(KeyCode::Left) {
-			self.mov(Direction::LEFT);
+			self.mov(Direction::Left);
 		} else if is_key_down(KeyCode::Up) {
-			self.mov(Direction::UP);
+			self.mov(Direction::Up);
 		} else if is_key_down(KeyCode::Down) {
-			self.mov(Direction::DOWN);
+			self.mov(Direction::Down);
 		} else if is_mouse_button_down(MouseButton::Left) {
-			if self.get_mouse_pos() == step(self.pos, Direction::RIGHT) {
-				self.mov(Direction::RIGHT);
-			} else if self.get_mouse_pos() == step(self.pos, Direction::LEFT) {
-				self.mov(Direction::LEFT);
-			} else if self.get_mouse_pos() == step(self.pos, Direction::UP) {
-				self.mov(Direction::UP);
-			} else if self.get_mouse_pos() == step(self.pos, Direction::DOWN) {
-				self.mov(Direction::DOWN);
+			if self.get_mouse_pos() == step(self.pos, Direction::Right) {
+				self.mov(Direction::Right);
+			} else if self.get_mouse_pos() == step(self.pos, Direction::Left) {
+				self.mov(Direction::Left);
+			} else if self.get_mouse_pos() == step(self.pos, Direction::Up) {
+				self.mov(Direction::Up);
+			} else if self.get_mouse_pos() == step(self.pos, Direction::Down) {
+				self.mov(Direction::Down);
 			}
 		}
-		return vec![];
+		vec![]
 	}
 }
