@@ -1,6 +1,7 @@
 use crate::game::Game;
 use crate::opts::Opts;
 use crate::state::*;
+use macroquad::math::Vec2;
 use macroquad::prelude::*;
 use macroquad::ui::root_ui;
 use macroquad::*;
@@ -28,22 +29,44 @@ impl State for LevelSelect {
 					o.clear
 						.iter()
 						.position(|x| x.is_none())
-						.unwrap_or(super::LVLS.len() - 1)
-						+ 1
+						.unwrap_or(super::LVLS.len())
 				};
-				for i in 0..unlocked {
-					if ui.button(None, i.to_string()) {
-						ret.push(Some(Box::new(Game::new(i).unwrap())));
+				let mut row: u32 = 0;
+				let mut col: u32 = 0;
+				// TODO: remove magic numbers
+				const BW: u32 = 53;
+				const BH: u32 = 56;
+				const MARGIN: u32 = 8;
+				for i in 0..super::LVLS.len() {
+					if screen_width() < (col * (BW + MARGIN) + MARGIN + BW + MARGIN) as f32 {
+						row += 1;
+						col = 0;
+					}
+					if ui.button(
+						Some(Vec2 {
+							x: (col * (BW + MARGIN) + MARGIN) as f32,
+							y: (row * (BH + MARGIN) + MARGIN) as f32,
+						}),
+						if unlocked >= i {
+							format!("{i:0>2}")
+						} else {
+							"??".to_string()
+						},
+					) {
+						if unlocked >= i {
+							ret.push(Some(Box::new(Game::new(i).unwrap())));
+						}
 						return;
 					}
+					ui.label(
+						Some(Vec2 {
+							x: (col * (BW + MARGIN) + MARGIN) as f32,
+							y: (row * (BH + MARGIN) + MARGIN) as f32,
+						}),
+						&o.clear[i].map(|x| x.to_string()).unwrap_or("".to_string()),
+					);
+					col += 1;
 				}
-				ui.separator();
-				for i in unlocked..super::LVLS.len() {
-					if ui.button(None, i.to_string()) {
-						return;
-					}
-				}
-				ui.separator();
 			},
 		);
 		ret

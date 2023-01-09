@@ -330,6 +330,17 @@ impl State for Game {
 			scale * 0.40,
 			BLACK,
 		);
+		draw_text(
+			&self.undo_stack.len().to_string(),
+			8.0,
+			30.0,
+			32.0,
+			if let Tile::Wall = self.m[0][0] {
+				WHITE
+			} else {
+				BLACK
+			},
+		);
 
 		if is_key_pressed(KeyCode::Escape) {
 			return vec![Some(Box::new(Pause::new()))];
