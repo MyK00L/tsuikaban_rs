@@ -11,13 +11,17 @@ const FILENAME: &str = ".config.bin";
 #[derive(Debug)]
 #[cfg_attr(feature = "save-options", derive(Serialize, Deserialize))]
 pub struct Opts {
-	pub unlocked: usize,
+	pub clear: [Option<usize>; super::LVLS.len()],
+	pub unlock_all_levels: bool,
+	pub colorblind_mode: bool,
 	pub palette: [[u8; 4]; 6],
 }
 impl Default for Opts {
 	fn default() -> Self {
 		Opts {
-			unlocked: 1usize,
+			clear: [None; super::LVLS.len()],
+			unlock_all_levels: false,
+			colorblind_mode: false,
 			palette: [
 				[255, 0, 0, 255],
 				[255, 228, 32, 255],

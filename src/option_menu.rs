@@ -17,7 +17,11 @@ impl OptionMenu {
 			col[2] = o.palette[i][2] as f32;
 		}
 		OptionMenu {
-			unlocked_str: o.unlocked.to_string(),
+			unlocked_str: if o.unlock_all_levels {
+				"1".to_string()
+			} else {
+				"0".to_string()
+			},
 			colors,
 		}
 	}
@@ -34,11 +38,7 @@ impl State for OptionMenu {
 			vec2(screen_width() + 2.0, screen_height() + 2.0),
 			|ui| {
 				if ui.button(None, "SAVE") {
-					o.unlocked = self
-						.unlocked_str
-						.parse::<usize>()
-						.unwrap_or(o.unlocked)
-						.min(super::LVLS.len());
+					o.unlock_all_levels = self.unlocked_str.parse::<usize>().unwrap_or(0) != 0;
 					for i in 0..6 {
 						for j in 0..3 {
 							o.palette[i][j] = self.colors[i][j] as u8;
@@ -80,20 +80,14 @@ impl State for OptionMenu {
 				}
 				ui.separator();
 				if ui.button(None, "LOAD DEFAULTS") {
-					let tmp = o.unlocked;
+					let tmp = o.clear;
 					*o = Opts::default();
-					o.unlocked = tmp;
+					o.clear = tmp;
 					*self = OptionMenu::new(o);
 					//return;
 				}
 			},
 		);
-		let x = self
-			.unlocked_str
-			.parse::<usize>()
-			.unwrap_or(o.unlocked)
-			.min(super::LVLS.len());
-		self.unlocked_str = x.to_string();
 		ret
 	}
 }

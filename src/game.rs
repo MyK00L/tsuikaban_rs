@@ -341,8 +341,8 @@ impl State for Game {
 
 		let win = matches!(self.m[self.pos.0][self.pos.1], Tile::Door);
 		if win {
-			if self.lvl_num + 1 == o.unlocked {
-				o.unlocked += 1;
+			if o.clear[self.lvl_num].is_none() || o.clear[self.lvl_num].unwrap() > self.undo_stack.len() {
+				o.clear[self.lvl_num] = Some(self.undo_stack.len());
 				o.save();
 			}
 			let mut ret = Vec::<Option<Box<dyn State>>>::new();
