@@ -288,8 +288,11 @@ impl State for Game {
 						false
 					};
 					let txt = x.n.to_string();
+					const SYMBOLS: [&str; 6] = ["A", "B", "C", "D", "E", "F"];
+					let sym = SYMBOLS[x.col];
 					let font_size = scale * 2.0 / 3.0;
-					let text_size = measure_text(&txt, None, 1, font_size);
+					let text_size = measure_text(&txt, None, font_size as u16, 1.0);
+					let sym_size = measure_text(sym, None, font_size as u16, 1.0);
 					if to_animate {
 						draw_rectangle(
 							(j as f32 + (1.0 - CUBE_SIZE) / 2.0 - delta.1) * scale,
@@ -301,10 +304,19 @@ impl State for Game {
 						draw_text(
 							&txt,
 							(j as f32 + 0.5 - delta.1) * scale - text_size.width / 2.0,
-							(i as f32 + 0.5 - delta.0) * scale + text_size.offset_y / 4.0,
+							(i as f32 + 0.5 - delta.0) * scale + text_size.offset_y / 2.0,
 							font_size,
 							BLACK,
 						);
+						if o.colorblind_mode {
+							draw_text(
+								sym,
+								(j as f32 - delta.1) * scale + scale * (1.0 - CUBE_SIZE) / 2.0,
+								(i as f32 - delta.0) * scale + sym_size.offset_y + scale * (1.0 - CUBE_SIZE) / 2.0,
+								font_size,
+								BLACK,
+							);
+						}
 					} else {
 						draw_rectangle(
 							(j as f32 + (1.0 - CUBE_SIZE) / 2.0) * scale,
@@ -316,10 +328,19 @@ impl State for Game {
 						draw_text(
 							&txt,
 							(j as f32 + 0.5) * scale - text_size.width / 2.0,
-							(i as f32 + 0.5) * scale + text_size.offset_y / 4.0,
+							(i as f32 + 0.5) * scale + text_size.offset_y / 2.0,
 							font_size,
 							BLACK,
 						);
+						if o.colorblind_mode {
+							draw_text(
+								sym,
+								(j as f32) * scale + scale * (1.0 - CUBE_SIZE) / 2.0,
+								(i as f32) * scale + sym_size.offset_y + scale * (1.0 - CUBE_SIZE) / 2.0,
+								font_size,
+								BLACK,
+							);
+						}
 					}
 				}
 			}

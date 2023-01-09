@@ -46,10 +46,10 @@ async fn main() {
 			.text_color(Color::from_rgba(255, 255, 255, 255))
 			.font_size(font_size)
 			.margin(macroquad::math::RectOffset {
-				left: 1.0,
-				right: 1.0,
-				bottom: 1.0,
-				top: 1.0,
+				left: 2.0,
+				right: 2.0,
+				bottom: 2.0,
+				top: 2.0,
 			})
 			.build();
 

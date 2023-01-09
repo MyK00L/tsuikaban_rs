@@ -5,7 +5,8 @@ use macroquad::ui::root_ui;
 use macroquad::*;
 
 pub struct OptionMenu {
-	unlocked_str: String,
+	unlock_all_bool: bool,
+	colorblind_bool: bool,
 	colors: [[f32; 3]; 6],
 }
 impl OptionMenu {
@@ -17,11 +18,8 @@ impl OptionMenu {
 			col[2] = o.palette[i][2] as f32;
 		}
 		OptionMenu {
-			unlocked_str: if o.unlock_all_levels {
-				"1".to_string()
-			} else {
-				"0".to_string()
-			},
+			unlock_all_bool: o.unlock_all_levels,
+			colorblind_bool: o.colorblind_mode,
 			colors,
 		}
 	}
@@ -38,7 +36,8 @@ impl State for OptionMenu {
 			vec2(screen_width() + 2.0, screen_height() + 2.0),
 			|ui| {
 				if ui.button(None, "SAVE") {
-					o.unlock_all_levels = self.unlocked_str.parse::<usize>().unwrap_or(0) != 0;
+					o.unlock_all_levels = self.unlock_all_bool;
+					o.colorblind_mode = self.colorblind_bool;
 					for i in 0..6 {
 						for j in 0..3 {
 							o.palette[i][j] = self.colors[i][j] as u8;
@@ -53,8 +52,8 @@ impl State for OptionMenu {
 					return;
 				}
 				ui.separator();
-				ui.label(None, "unlocked levels:");
-				ui.input_text(hash!(), "unlocked levels", &mut self.unlocked_str);
+				ui.checkbox(hash!(), "unlock all levels", &mut self.unlock_all_bool);
+				ui.checkbox(hash!(), "colorblind mode", &mut self.colorblind_bool);
 				ui.separator();
 				for i in 0..6 {
 					ui.tree_node(hash!(i * 4), &format!("color {i}"), |ui| {
