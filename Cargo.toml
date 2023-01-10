@@ -1,16 +1,17 @@
 [package]
 name = "tsuikaban_rs"
 version = "0.1.0"
+resolver = "2"
 authors = ["Michael Chelli <michaelchelli00@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-macroquad = "0.3"
-bincode = {version = "1.3", optional = true}
-serde = {version = "1", optional = true, features=["derive"]}
+macroquad = {version = "0.3", default-features = false}
+bincode = {version = "2.0.0-rc.2", default-features = false, features=["std","derive"], optional = true}
 
 [features]
-save-options = ["bincode","serde"]
+default = ["save-options"]
+save-options = ["bincode"]
 
