@@ -1,3 +1,4 @@
 /target
 .config.bin
 www/tsuikaban_rs.wasm
+www/tsuikaban_rs.zip
