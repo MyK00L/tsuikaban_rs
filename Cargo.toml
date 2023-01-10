@@ -8,10 +8,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-macroquad = {version = "0.3", default-features = false}
-bincode = {version = "2.0.0-rc.2", default-features = false, features=["std","derive"], optional = true}
-
-[features]
-default = ["save-options"]
-save-options = ["bincode"]
+macroquad = "0.3"
+bincode = {version = "2.0.0-rc.2", default-features = false, features = ["std", "derive"]}
+quad-wasmnastics = "0.3"
 

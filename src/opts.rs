@@ -1,14 +1,7 @@
-#[cfg(feature = "save-options")]
-use {
-	bincode::{config, Decode, Encode},
-	std::fs::File,
-};
+use bincode::{config, Decode, Encode};
+use quad_wasmnastics::storage;
 
-#[cfg(feature = "save-options")]
-const FILENAME: &str = ".config.bin";
-
-#[derive(Debug)]
-#[cfg_attr(feature = "save-options", derive(Encode, Decode))]
+#[derive(Debug, Encode, Decode)]
 pub struct Opts {
 	pub clear: [Option<usize>; super::LVLS.len()],
 	pub unlock_all_levels: bool,
@@ -32,24 +25,29 @@ impl Default for Opts {
 		}
 	}
 }
-#[cfg(feature = "save-options")]
 impl Opts {
 	pub fn new() -> Self {
-		if let Ok(mut file) = File::open(FILENAME) {
-			bincode::decode_from_std_read(&mut file, config::standard()).unwrap_or_default()
+		if let Ok(bin) = storage::load_from(&Opts::get_location()) {
+			bincode::decode_from_slice(&bin, config::standard())
+				.unwrap_or_default()
+				.0
 		} else {
-			Opts::default()
+			Self::default()
 		}
 	}
 	pub fn save(&self) {
-		let mut file = File::create(FILENAME).unwrap();
-		bincode::encode_into_std_write(self, &mut file, config::standard()).unwrap();
+		if let Err(e) = storage::save_to(
+			bincode::encode_to_vec(self, config::standard()).unwrap_or_default(),
+			&Opts::get_location(),
+		) {
+			eprintln!("{}", e);
+		}
 	}
-}
-#[cfg(not(feature = "save-options"))]
-impl Opts {
-	pub fn new() -> Self {
-		Self::default()
+	fn get_location() -> storage::Location {
+		storage::Location {
+			bin_name: "tsuikaban_rs".to_string(),
+			version: "1".to_string(),
+			profile: "data".to_string(),
+		}
 	}
-	pub fn save(&self) {}
 }
